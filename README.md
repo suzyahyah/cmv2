@@ -26,3 +26,14 @@ This file has `filename delta winning_team` on each line.
 #### generating different train test splits
 
 `bash bin/debates-data-prep2.sh $seed`
+
+
+---
+
+### running scripts for reddit-cmv
+
+- Change `SAVEDIR` in ./bin/exp_settings.sh
+- Change `CUDA=${device}` in ./bin/exp_settings.sh
+- In main directory, run `./bin/quick_run.sh`, change hypothesis or seed flag where appropriate.
+
+hidden states will be saved to `SAVEDIR/hidden_states/val_{hyp}_{seed}.p`

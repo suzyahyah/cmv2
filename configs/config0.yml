@@ -1,0 +1,15 @@
+cycle:
+  n_epoch: 400
+  n_cycle: 8
+  start: 0
+  stop: 1
+  ratio: 0.5
+loss:
+  bce: 0.1
+  kld: 1
+  delta: 1
+  md: 1
+  margin: 1
+optm:
+  lr: 0.0001
+  wd: 0.00001
