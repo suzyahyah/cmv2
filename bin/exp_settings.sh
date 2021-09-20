@@ -62,6 +62,7 @@ declare -A F=(
 ["TEST_FN2"]=$testfn2
 ["SAVEDIR"]=$SAVEDIR
 ["TITLE_EMBED_FN"]=data/pair_task/train_title_embed.json
+["SANITY_CHECK"]=$7
 )
 
 declare -A M=(
@@ -87,7 +88,7 @@ declare -A M=(
 
 declare -A Z=(
 ["ZSUM"]=rnn #cnn, fnn, #weighted_avg, simple_average, similarity
-["TRIPLET_THRESH"]=${7:-0.01}
+["TRIPLET_THRESH"]=0.01 #${7:-0.01}
 ["CONTRAST_THRESH"]=$contrast_thresh
 ["MARGIN_THRESH"]=$margin_thresh
 ["USE_PRIOR_MU"]=False

@@ -150,7 +150,6 @@ def run(args, device):
 
         stoploss.update(metrics)
         if stoploss.check(epoch):
-            stoploss.max_epoch=0
             save_fp = f'{MODEL_SAVE_PATH}-{stoploss.max_epoch}.pt'
             model.load_state_dict(torch.load(save_fp))
 
@@ -171,7 +170,8 @@ def run(args, device):
             
 
                 with open(f'{args.savedir}/hidden_states_CD/val_hyp{args.hyp}_seed{args.seed}.p', 'wb') as f:
-                    pickle.dump(hidden_states, f)
+                    pickle.dump(hidden_states2, f)
+
                 print("hidden states written to:", f'{args.savedir}/hidden_states')
 
             return stoploss.report_max()

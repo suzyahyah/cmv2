@@ -70,6 +70,8 @@ argparser.add_argument('--update_itr', type=int)
 argparser.add_argument('--stopwords', type=int) # type=lambda x: bool(strtobool(x)), default=False)
 argparser.add_argument('--use_prior_mu', type=lambda x: bool(strtobool(x)), default=False)
 argparser.add_argument('--hyp', type=int, default=1)
+argparser.add_argument('--sanity_check', type=int, default=0)
+
 
 
 args = argparser.parse_args()

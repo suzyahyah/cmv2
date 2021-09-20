@@ -25,12 +25,8 @@ from sentence_transformers import SentenceTransformer
 #DB = Debugger()
 #DB.debug_mode=True
 
-#DEBUG_MODE=True
-DEBUG_MODE=False
-
 #torch.backends.cudnn.deterministic = True
 #torch.backends.cudnn.benchmark = False
-
 
 class JSONDataset(Dataset):
 
@@ -44,7 +40,7 @@ class JSONDataset(Dataset):
         self.ix2w = {v:k for k, v in self.w2ix.items()}
         self.universal_embed = args['universal_embed']
         self.word_dropout = args['word_dropout']
-
+        self.sanity_check = args['sanity_check']
 #        self.data, self.vocab_words =  self.read_json_cmu(json_fn)
 
         self.vocab_size = 0
@@ -381,9 +377,9 @@ class CMVDataset(JSONDataset):
         irr = 0
         
         # COMMENT OUT
-        if DEBUG_MODE:
-            print("Debug mode....")
-            threads = threads[:50]
+        if self.sanity_check:
+            print("Sanity checking with 100 samples....")
+            threads = threads[:100]
             
 
         for i in range(len(threads)):
