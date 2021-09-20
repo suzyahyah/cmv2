@@ -157,6 +157,7 @@ def run(args, device):
                                                 optimizer, train_dataset.ix2w, epoch, kl_w, 
                                                 args, mode="test(ID)", device=device, word_dropout=0)
 
+            os.makedirs(f'{args.savedir}/hidden_states_ID', exist_ok=True)      
             with open(f'{args.savedir}/hidden_states_ID/val_hyp{args.hyp}_seed{args.seed}.p', 'wb') as f:
                 pickle.dump(hidden_states, f)
 
@@ -167,8 +168,8 @@ def run(args, device):
                                         args, mode="test(CD)", device=device, word_dropout=1)
 
                 metrics['test2'] = np.mean(test_metricsD2[args.eval_metric])
-            
-
+                
+                os.makedirs(f'{args.savedir}/hidden_states_CD', exist_ok=True)
                 with open(f'{args.savedir}/hidden_states_CD/val_hyp{args.hyp}_seed{args.seed}.p', 'wb') as f:
                     pickle.dump(hidden_states2, f)
 
