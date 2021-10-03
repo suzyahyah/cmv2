@@ -110,6 +110,7 @@ if __name__ == "__main__":
 
         result = result.strip()
         if not os.path.exists('results/full_task.txt'):
+            os.makedirs('results', exist_ok=True)
             with open('results/full_task.txt', 'w') as f:
                 f.write(",".join(keys))
 
