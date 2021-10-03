@@ -99,7 +99,7 @@ def run(args, device):
         print("epoch:", epoch, "steps:", steps, "kl_old:", np.around(kl_w, 8)) #, 'anneal_new:', anneal_w[epoch])
         ### TRAIN
         model.train()
-        train_metricsD, train_lossD, _ = run_epoch_(train_dataloader, log_err_train, 
+        train_metricsD, train_lossD, _, preds_train = run_epoch_(train_dataloader, log_err_train, 
                                                 log_samp_train, model, 
                                                 optimizer, train_dataset.ix2w, epoch, kl_w, 
                                                 args, mode="train", device=device,
@@ -113,12 +113,12 @@ def run(args, device):
         ### VALID, TEST
         # refactor such that I can see valid and test metrics. 
         #
-        valid_metricsD, valid_lossD, _ = run_epoch_(valid_dataloader, log_err_valid, log_samp_valid, model, 
+        valid_metricsD, valid_lossD, hidden_states_val, preds_val = run_epoch_(valid_dataloader, log_err_valid, log_samp_valid, model, 
                                                 optimizer, train_dataset.ix2w, epoch, kl_w, 
                                                 args, mode="valid", device=device,
                                                 word_dropout=0)
 
-        test_metricsD, test_lossD, hidden_states  = run_epoch_(test_dataloader, log_err_test, log_samp_test, model, 
+        test_metricsD, test_lossD, hidden_states, preds_test1  = run_epoch_(test_dataloader, log_err_test, log_samp_test, model, 
                                                 optimizer, train_dataset.ix2w, epoch, kl_w, 
                                                 args, mode="test(ID)", device=device, word_dropout=0)
         metrics = {'train':np.mean(train_metricsD[args.eval_metric]),
@@ -127,7 +127,7 @@ def run(args, device):
 
 
         if args.dataset == "all":
-            test_metricsD2, test_lossD2, hidden_states2 = run_epoch_(test_dataloader2, log_err_test, log_samp_test, 
+            test_metricsD2, test_lossD2, hidden_states2, preds_test2 = run_epoch_(test_dataloader2, log_err_test, log_samp_test, 
                                     model, optimizer, train_dataset.ix2w, epoch, kl_w, 
                                     args, mode="test(CD)", device=device, word_dropout=1)
 
@@ -153,28 +153,37 @@ def run(args, device):
             save_fp = f'{MODEL_SAVE_PATH}-{stoploss.max_epoch}.pt'
             model.load_state_dict(torch.load(save_fp))
 
-            test_metricsD, test_lossD, hidden_states  = run_epoch_(test_dataloader, log_err_test, log_samp_test, model, 
+            test_metricsD, test_lossD, hidden_states, preds_test1  = run_epoch_(test_dataloader, log_err_test, log_samp_test, model, 
                                                 optimizer, train_dataset.ix2w, epoch, kl_w, 
                                                 args, mode="test(ID)", device=device, word_dropout=0)
-
+    
+            with open(f'{args.savedir}/hidden_states/val_hyp{args.hyp}_seed{args.seed}.p', 'wb') as f:
+                pickle.dump(hidden_states_val, f)
+            
             os.makedirs(f'{args.savedir}/hidden_states_ID', exist_ok=True)      
-            with open(f'{args.savedir}/hidden_states_ID/val_hyp{args.hyp}_seed{args.seed}.p', 'wb') as f:
+            with open(f'{args.savedir}/hidden_states_ID/test_hyp{args.hyp}_seed{args.seed}.p', 'wb') as f:
                 pickle.dump(hidden_states, f)
 
             if args.dataset == "all":
 
-                test_metricsD2, test_lossD2, hidden_states2 = run_epoch_(test_dataloader2, log_err_test, log_samp_test, 
+                test_metricsD2, test_lossD2, hidden_states2, preds_test2 = run_epoch_(test_dataloader2, log_err_test, log_samp_test, 
                                         model, optimizer, train_dataset.ix2w, epoch, kl_w, 
                                         args, mode="test(CD)", device=device, word_dropout=1)
 
                 metrics['test2'] = np.mean(test_metricsD2[args.eval_metric])
                 
                 os.makedirs(f'{args.savedir}/hidden_states_CD', exist_ok=True)
-                with open(f'{args.savedir}/hidden_states_CD/val_hyp{args.hyp}_seed{args.seed}.p', 'wb') as f:
+                with open(f'{args.savedir}/hidden_states_CD/test_hyp{args.hyp}_seed{args.seed}.p', 'wb') as f:
                     pickle.dump(hidden_states2, f)
 
                 print("hidden states written to:", f'{args.savedir}/hidden_states')
 
+            all_preds = {'train': preds_train, 'val': preds_val, 'test_ID': preds_test1, 'test_CD': preds_test2}
+            os.makedirs(f'{args.savedir}/preds', exist_ok=True)
+            with open('{}/preds/lr={}_seed={}.pickle'.format(args.savedir, opt['lr'], args.seed), 'wb') as handle:
+                pickle.dump(all_preds, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            print("all preds written to:", f'{args.savedir}/preds')
+                
             return stoploss.report_max()
     
     stoploss.check(epoch, stop=True)
@@ -193,6 +202,7 @@ def run_epoch_(dataloader, log_err, log_samp, model, optimizer, ix2w,
     # These do not get considered in backpropagation loss
     metricsD_epoch = {"acc":[], "roc":[], "acc_indiv":[]}
     hidden_states = {}
+    preds = {}
 
 
     for i, (threadID, OP, all_CO_pos, all_CO_neg, all_CO_irr) in enumerate(dataloader):
@@ -316,6 +326,8 @@ def run_epoch_(dataloader, log_err, log_samp, model, optimizer, ix2w,
             
             y_true2 = np.hstack((np.ones(len(all_CO_pos)), np.ones(len(all_CO_neg))*2))
             metricsD_epoch['acc_indiv'].append(accuracy_score(y_true2, y_pred_acc))
+            
+            preds[threadID] = {'y_true': y_true2, 'y_pred': y_pred_acc}
 
         # average over Pos and Neg Deltas -- should we be averaging across all delta_losses?
         #delta_loss = delta_loss / (len(CO_pos_z)+len(CO_neg_z))
@@ -342,7 +354,7 @@ def run_epoch_(dataloader, log_err, log_samp, model, optimizer, ix2w,
     #input0 = model.embedding(torch.LongTensor([sos_ix]).cuda() #)
     #z = torch.randn(5, args.z_dim)
 
-    return metricsD_epoch, lossD_epoch, hidden_states
+    return metricsD_epoch, lossD_epoch, hidden_states, preds
 
 
 def model_summz(model, OP_zs, CO, lossD, prior_mu, kl_w, zsum, incl_loss=1):
