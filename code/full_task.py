@@ -180,7 +180,7 @@ def run(args, device):
 
             all_preds = {'train': preds_train, 'val': preds_val, 'test_ID': preds_test1, 'test_CD': preds_test2}
             os.makedirs(f'{args.savedir}/preds', exist_ok=True)
-            with open('{}/preds/lr={}_seed={}.pickle'.format(args.savedir, opt['lr'], args.seed), 'wb') as handle:
+            with open('{}/preds/hyp{}_lr{}_seed{}.pickle'.format(args.savedir, args.hyp, opt['lr'], args.seed), 'wb') as handle:
                 pickle.dump(all_preds, handle, protocol=pickle.HIGHEST_PROTOCOL)
             print("all preds written to:", f'{args.savedir}/preds')
                 
