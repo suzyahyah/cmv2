@@ -59,11 +59,13 @@ class RNNVAE(nn.Module):
         self.rnngate = rnngate
         self.framework = framework
         self.scale_pzvar = scale_pzvar
+        self.cossim = nn.CosineSimilarity()
 
         self.delta_nn = DeltaPredictor(z_dim=z_dim, h_dim=h_dim, z_combine=z_combine)
 
         self.discrim_z = Discrim_z(h_dim, z_dim)
-        self.mse = nn.MSELoss()
+        #self.mse = nn.MSELoss()
+        #self.mse = nn.HuberLoss()
         self.freeze = freeze_weights
         self.z_summary = z_summary
 
@@ -193,19 +195,31 @@ class RNNVAE(nn.Module):
         loss = torch.clamp((threshold - OH_contrast_dist), min=0)
         return loss
 
-
-    def triplet_loss(self, OH_z, CO_pos_z, CO_neg_z, CO_irr_z, threshold, hyp=1, contrast=False):
+    def triplet_loss(self, OH_z, CO_pos_z, CO_neg_z, CO_irr_z, neg_out, threshold, hyp=1, weighted=0):
         # triplet loss
         # CHECK: how many elements in z
             #self.mse(OH_z, CO_pos_z) - self.mse(OH_z, CO_neg_z) > threshold
             # we expect the negative example to be closer rather than further!
-        OH_pos_dist = [self.mse(OH_z, CO_pos) for CO_pos in CO_pos_z]
-        OH_neg_dist = [self.mse(OH_z, CO_neg) for CO_neg in CO_neg_z]
-        OH_irr_dist = [self.mse(OH_z, CO_irr) for CO_irr in CO_irr_z]
+        if weighted == 0:
+            neg_out = None
 
-        OH_pos_dist = torch.stack(OH_pos_dist)
-        OH_neg_dist = torch.stack(OH_neg_dist)
-        OH_irr_dist = torch.stack(OH_irr_dist)
+        #OH_pos_dist = [self.mse(OH_z, CO_pos) for CO_pos in CO_pos_z]
+        #OH_neg_dist = [self.mse(OH_z, CO_neg) for CO_neg in CO_neg_z]
+        #OH_irr_dist = [self.mse(OH_z, CO_irr) for CO_irr in CO_irr_z]
+        OH_z = OH_z.unsqueeze(0)
+
+        OH_pos_dist = 1 - self.cossim(OH_z, CO_pos_z)
+        OH_neg_dist = 1 - self.cossim(OH_z, CO_neg_z)
+        OH_irr_dist = 1 - self.cossim(OH_z, CO_irr_z)
+
+        #OH_pos_dist1 = [torch.cdist(OH_z, CO_pos.unsqueeze(0)).squeeze() for CO_pos in CO_pos_z]
+        #OH_neg_dist2 = [torch.cdist(OH_z, CO_neg.unsqueeze(0)).squeeze() for CO_neg in CO_neg_z]
+        #OH_irr_dist3 = [torch.cdist(OH_z, CO_irr.unsqueeze(0)).squeeze() for CO_irr in CO_irr_z]
+
+        #import pdb; pdb.set_trace() 
+        #OH_pos_dist = torch.stack(OH_pos_dist)
+        #OH_neg_dist = torch.stack(OH_neg_dist)
+        #OH_irr_dist = torch.stack(OH_irr_dist)
         
         if hyp == 0:
             return 0
@@ -236,22 +250,46 @@ class RNNVAE(nn.Module):
             smaller = OH_neg_dist
             larger = OH_irr_dist
 
-        losses = self._clamp_loss(smaller, larger, threshold)
+
+        if hyp in [1,2,3]:
+            losses = self._clamp_loss(smaller, larger, threshold, neg_out)
 
         if hyp == 4 or hyp == 5:
             # this has 2 loss functions
-            losses += self._clamp_loss(smallest, smaller, threshold)
+            losses = self._clamp_loss(smaller, larger, threshold)
+            losses += self._clamp_loss(smallest, smaller, threshold, neg_out)
         
 
         return losses
 
-    def _clamp_loss(self, smaller, larger, threshold):
+    def _clamp_loss(self, smaller, larger, threshold, neg_out=None):
         #loss = smaller - larger + threshold
+#        if neg_out is not None:
+#            neg_out = neg_out.detach().squeeze()
+#            print(neg_out)
+#            if len(neg_out.size())==0:
+#                pass
+#            else:
+#                if smaller.shape[0] == neg_out.shape[0]:
+#                    smaller = smaller[torch.where(neg_out>0.5)[0]]
+#                else:
+#                    larger = larger[torch.where(neg_out>0.5)[0]]
+
+
         x = smaller.repeat(larger.shape[0], 1) \
         - larger.repeat(smaller.shape[0], 1).transpose(0,1) + threshold
         
         # equivalent to max(x, 0), because we clamp the min value at 0
         losses = torch.clamp(x, min=0)
+        #if neg_out is not None:
+           # neg_out = -torch.log(neg_out)
+        #    neg_out = 1-neg_out
+           # losses = torch.exp(losses * neg_out.detach().squeeze())
+        #    losses = torch.exp(losses * (-torch.log(neg_out.detach().squeeze())))
+            #losses = losses[torch.where(neg_out>0.5)[0]]
+            #neg_out = neg_out[torch.where(neg_out<0.5)[0]]
+
+            #losses = losses * neg_out.detach().squeeze()
     
         if len(torch.nonzero(losses))>0:
         #    losses = losses.sum()/len(torch.nonzero(losses)) # average across nonzero only
@@ -297,6 +335,8 @@ class DeltaPredictor(nn.Module):
         h2 = F.relu(self.fc2(h1))
 
         out = torch.sigmoid(self.fc3(h2))
+        # convert to BCEWithLogits
+        # convert everything to log form 
         #out = self.fc3(h2)
         return out
 
