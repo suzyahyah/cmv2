@@ -1,3 +1,4 @@
+from tqdm import tqdm
 import re
 import pickle
 import utils
@@ -67,9 +68,12 @@ def run(args, device):
         new_emb_fn = args.new_emb + f".{args.nwords}"
         model.load_embeddings(fn=new_emb_fn)
     try:
-        save_fp = f'{MODEL_SAVE_PATH}-{args.l_epoch}.pt'
-        model.load_state_dict(torch.load(save_fp))
-        print("loaded from:", args.l_epoch)
+        if args.l_epoch == 0:
+            print("train from scratch")
+        else:
+            save_fp = f'{MODEL_SAVE_PATH}-{args.l_epoch}.pt'
+            model.load_state_dict(torch.load(save_fp))
+            print("loaded from:", args.l_epoch)
     except:
         print("Could not load file or missing model path, train from scratch.")
         
@@ -205,7 +209,7 @@ def run_epoch_(dataloader, log_err, log_samp, model, optimizer, ix2w,
     preds = {}
 
 
-    for i, (threadID, OP, all_CO_pos, all_CO_neg, all_CO_irr) in enumerate(dataloader):
+    for i, (threadID, OP, all_CO_pos, all_CO_neg, all_CO_irr) in enumerate(tqdm(dataloader)):
         # OP is always a dictionary
         # OP['xx'].shape = [batch_size, seq_len, dim] = [1, n_seq, dim]
         # if use unsupervised. then we extract the relevant unsupervised data for additional
@@ -282,7 +286,7 @@ def run_epoch_(dataloader, log_err, log_samp, model, optimizer, ix2w,
             #### TRIPLET LOSS
             if args.triplet_thresh>0 and len(all_CO_neg)>0 and len(all_CO_pos)>0 and len(all_CO_irr)>0:
                 lossD['md'] += model.triplet_loss(OP_z, CO_pos_zs, CO_neg_zs, CO_irr_zs, \
-                        args.triplet_thresh, hyp=args.hyp)
+                        neg_out, args.triplet_thresh, hyp=args.hyp, weighted=args.weighted_triploss)
                 hidden_states[threadID[0]]['OP'] = OP_z.detach().cpu().numpy()
                 hidden_states[threadID[0]]['CO_neg'] = CO_neg_zs.detach().cpu().numpy()
                 hidden_states[threadID[0]]['CO_pos'] = CO_pos_zs.detach().cpu().numpy()

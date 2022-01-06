@@ -210,6 +210,7 @@ def process_json_pair_task(fn=""):
         ID_text[pos_id] = pos_text
         ID_text[neg_id] = neg_text
         ID_text[irr_id] = irr_text
+        import pdb; pdb.set_trace() 
 
         ID_pairs.append((pid, pos_id, 1))        
         ID_pairs.append((pid, neg_id, 0))
