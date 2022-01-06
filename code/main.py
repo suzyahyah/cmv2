@@ -58,6 +58,7 @@ argparser.add_argument('--eval_metric', dest='eval_metric', type=str, default="a
 argparser.add_argument('--balanced', dest='balanced', type=int, default=0)
 
 #z
+argparser.add_argument('--weighted_triploss', type=float, default=0.0)
 argparser.add_argument('--triplet_thresh', type=float, default=0.0)
 argparser.add_argument('--contrast_thresh', type=float, default=0.0)
 argparser.add_argument('--margin_thresh', type=float, default=0.0)

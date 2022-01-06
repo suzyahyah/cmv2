@@ -6,10 +6,12 @@
 #$ -M fengsf85@gmail.com
 
 source activate rnn-vae
+source /home/gqin2/scripts/acquire-gpu
+
 echo $HOSTNAME
 echo $*
 
-DATASET=$1
+DATASET=all
 SAVEDIR=/export/c10/ssia/cmv
 
 if [ "$HOSTNAME" == "DESKTOP-KFANQCM" ]; then
@@ -62,15 +64,15 @@ declare -A F=(
 ["TEST_FN2"]=$testfn2
 ["SAVEDIR"]=$SAVEDIR
 ["TITLE_EMBED_FN"]=data/pair_task/train_title_embed.json
-["SANITY_CHECK"]=$7
+["SANITY_CHECK"]=${7:-0}
 )
 
 declare -A M=(
-["ENCODER"]=$2 #, universal_se, glove
-["FRAMEWORK"]=${3:-rnnv} #rnn # rnn #bert
+["ENCODER"]=glove #, universal_se, glove
+["FRAMEWORK"]=rnnv #rnn # rnn #bert
 ["CONFIGN"]=0
-["SS_RECON_LOSS"]=$5 # semi-supervised reconstruction loss
-["SEED"]=0
+["SS_RECON_LOSS"]=0 # semi-supervised reconstruction loss
+["SEED"]=$2
 ["CUDA"]=$CUDA
 ["NUM_EPOCHS"]=300
 ["NWORDS"]=40000
@@ -88,11 +90,12 @@ declare -A M=(
 
 declare -A Z=(
 ["ZSUM"]=rnn #cnn, fnn, #weighted_avg, simple_average, similarity
-["TRIPLET_THRESH"]=0.01 #${7:-0.01}
+["WEIGHTED_TRIPLOSS"]=0
+["TRIPLET_THRESH"]=$3
 ["CONTRAST_THRESH"]=$contrast_thresh
 ["MARGIN_THRESH"]=$margin_thresh
 ["USE_PRIOR_MU"]=False
-["HYP"]=$4
+["HYP"]=${1:-4}
 ["UNIVERSAL_EMBED"]=False # change this to encoder
 ["Z_COMBINE"]=concat
 ["SCALE_PZVAR"]=1
